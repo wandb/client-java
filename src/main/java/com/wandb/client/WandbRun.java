@@ -7,13 +7,22 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.util.Timer;
 
 public class WandbRun {
     public static void main(String[] args) throws IOException, InterruptedException {
         System.out.println("Hello from wandb in java using GRPC!");
 
-        WandbRun run = new WandbRun.Builder().build();
+        JSONObject config = new JSONObject();
+        config.put("data1", 1);
+        config.put("data2", "SOME VALUE");
+
+        System.out.println("Creating Runner");
+        WandbRun run = new WandbRun.Builder().withConfig(config).build();
         WandbServer.RunData data = run.data();
         String baseUrl = "https://app.wandb.ai";
 
@@ -28,6 +37,7 @@ public class WandbRun {
         for (double i = 0.0; i < 2 * Math.PI; i += 0.01) {
             JSONObject log = new JSONObject();
             log.put("value", Math.sin(i));
+            log.put("value2", Math.sin(i) * 2);
             System.out.println(log);
             run.log(log);
         }
@@ -122,9 +132,14 @@ public class WandbRun {
     private Process grpcProcess;
     private WandbServer.RunData run;
     private int stepCounter;
+    private Timer timer;
+    private WandbOutputStream output;
 
     private WandbRun(Builder builder) throws IOException, InterruptedException {
-        // Start GRPC Server
+
+        this.output = new WandbOutputStream();
+        System.setOut(new PrintStream(this.output));
+
         ProcessBuilder pb = new ProcessBuilder("wandb", "grpc-server");
         pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
@@ -162,8 +177,11 @@ public class WandbRun {
 
     public void done(int exitCode) {
         try {
-            Thread.sleep(2000);
+            this.output.flush();
+            this.output.close();
+            Thread.sleep(500);
         }catch (Exception ignore) {}
+
         this.exit(exitCode);
         this.shutdown();
     }
@@ -183,10 +201,15 @@ public class WandbRun {
     static private WandbServer.HistoryData makeLogData(JSONObject json) {
         WandbServer.HistoryData.Builder dataBuilder = WandbServer.HistoryData.newBuilder();
         for (String key: json.keySet()) {
+            Object obj = json.get(key);
+
+            boolean isString = obj instanceof String;
+            String jsonValue = isString ? "\"" + obj.toString() + "\"" : obj.toString();
+
             dataBuilder.addItem(
                     WandbServer.HistoryItem.newBuilder()
                             .setKey(key)
-                            .setValueJson(json.get(key).toString())
+                            .setValueJson(jsonValue)
                             .build()
             );
         }
@@ -196,10 +219,15 @@ public class WandbRun {
     static private WandbServer.ConfigData makeConfigData(JSONObject json) {
         WandbServer.ConfigData.Builder dataBuilder = WandbServer.ConfigData.newBuilder();
         for (String key: json.keySet()) {
+            Object obj = json.get(key);
+
+            boolean isString = obj instanceof String;
+            String jsonValue = isString ? "\"" + obj.toString() + "\"" : obj.toString();
+
             dataBuilder.addUpdate(
                     WandbServer.ConfigItem.newBuilder()
                             .setKey(key)
-                            .setValueJson(json.get(key).toString())
+                            .setValueJson(jsonValue)
                             .build()
             );
         }

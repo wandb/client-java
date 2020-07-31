@@ -24,6 +24,7 @@
             <artifactId>grpc-stub</artifactId>
             <version>1.30.2</version>
         </dependency>
+
         <dependency>
             <groupId>org.apache.tomcat</groupId>
             <artifactId>annotations-api</artifactId>
