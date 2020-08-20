@@ -1,17 +1,16 @@
 package com.wandb.client;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.List;
 
 public class WandbOutputStream extends OutputStream {
 
     private StringBuilder stringBuilder;
-    private PrintStream original;
+    final private WandbRun run;
+    final private PrintStream original;
 
-    public WandbOutputStream() {
+    public WandbOutputStream(WandbRun run) {
+        this.run = run;
         this.original = System.out;
         this.stringBuilder = new StringBuilder();
     }
@@ -37,5 +36,9 @@ public class WandbOutputStream extends OutputStream {
         this.original.print(this.stringBuilder.toString());
         this.original.println("Flushing output [FINAL]");
         this.stringBuilder = new StringBuilder();
+    }
+
+    public void resetOut() {
+        System.setOut(this.original);
     }
 }

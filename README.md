@@ -7,5 +7,6 @@
 ## Development
 
 1. Install Java and Maven
-2. Install dependencies using Maven `mvn install`
-
+2. Install dependencies using `make install`
+3. Build jar file `make build`
+4. Run jar file `make run`
