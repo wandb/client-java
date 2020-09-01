@@ -27,14 +27,14 @@ public class WandbOutputStream extends OutputStream {
 
         if (this.stringBuilder.length() > 250) {
             this.original.print(this.stringBuilder.toString());
-            this.original.println("Flushing output [AUTOMATICALLY]");
+//            this.original.println("Flushing output [AUTOMATICALLY]");
             this.stringBuilder = new StringBuilder();
         }
     }
 
     public void flush() {
         this.original.print(this.stringBuilder.toString());
-        this.original.println("Flushing output [FINAL]");
+//        this.original.println("Flushing output [FINAL]");
         this.stringBuilder = new StringBuilder();
     }
 
