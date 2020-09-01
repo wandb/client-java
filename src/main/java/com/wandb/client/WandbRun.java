@@ -9,6 +9,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.List;
 
 public class WandbRun {
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -32,10 +33,9 @@ public class WandbRun {
                         + data.getRunId()
         );
 
-        for (double i = 0.0; i < 2 * Math.PI; i += 0.01) {
+        for (double i = 0.0; i < 2 * Math.PI; i += 0.05) {
             JSONObject log = new JSONObject();
             log.put("value", Math.sin(i));
-            log.put("value2", Math.sin(i) * 2);
             System.out.println(log);
             run.log(log);
         }
@@ -60,31 +60,55 @@ public class WandbRun {
             this.runBuilder = WandbServer.RunRecord.newBuilder();
         }
 
+        /**
+         * Set a display name for this run, which shows up in the UI and is editable, doesn't have to be unique.
+         * @param name display name for the run
+         */
         public Builder withName(String name) {
             this.runBuilder.setDisplayName(name);
             return this;
         }
 
+        /**
+         * Set a JSON object to set as initial config
+         * @param config initial config of the run
+         */
         public Builder withConfig(JSONObject config) {
             this.runBuilder.setConfig(makeConfigData(config));
             return this;
         }
 
+        /**
+         * Set the name of the project to which this run will belong
+         * @param name name of the project this run belongs too
+         */
         public Builder withProject(String name) {
             this.runBuilder.setProject(name);
             return this;
         }
 
+        /**
+         * Set a string description associated with the run
+         * @param notes description associated with the run
+         */
         public Builder withNotes(String notes) {
             this.runBuilder.setNotes(notes);
             return this;
         }
 
+        /**
+         * Sets the type of job you are logging, e.g. eval, worker, ps (default: training)
+         * @param type type of job you are logging
+         */
         public Builder setJobType(String type) {
             this.runBuilder.setJobType(type);
             return this;
         }
 
+        /**
+         * Set a string by which to group other runs;
+         * @param runGroup string for which group this run is apart of
+         */
         public Builder withRunGroup(String runGroup) {
             this.runBuilder.setRunGroup(runGroup);
             return this;
@@ -95,31 +119,50 @@ public class WandbRun {
             return this;
         }
 
-        public Builder setHost(String host) {
-            this.runBuilder.setHost(host);
+        /**
+         * Adds a list of strings to associate with this run as tags
+         * @param tags list of strings to associate with this run
+         */
+        public Builder setTags(List<String> tags) {
+            this.runBuilder.addAllTags(tags);
             return this;
         }
 
-        public Builder addTag(String tags) {
-            this.runBuilder.addTags(tags);
-            return this;
-        }
-
+        /**
+         * Removes all tags associated with this run.
+         */
         public Builder clearTags() {
             this.runBuilder.clearTags();
             return this;
         }
 
+
+        public Builder setHost(String host) {
+            this.runBuilder.setHost(host);
+            return this;
+        }
+
+        /**
+         * Sets the internal address for the GRPC server
+         * @param address GRPC address for this run
+         */
         public Builder onAddress(String address) {
             this.gprcAddress = address;
             return this;
         }
 
+        /**
+         * Sets the internal port for the GRPC server
+         * @param port GRPC port for this run
+         */
         public Builder onPort(int port) {
             this.gprcPort = port;
             return this;
         }
 
+        /**
+         * Creates a run from the provided configuration
+         */
         public WandbRun build() throws IOException, InterruptedException {
             return new WandbRun(this);
         }
@@ -155,15 +198,25 @@ public class WandbRun {
         this.run = this.stub.runUpdate(builder.runBuilder.build()).getRun();
         this.stepCounter = 0;
 
+        // Object for logging stdout to Wandb
         this.output = new WandbOutputStream(this);
         System.setOut(new PrintStream(this.output));
 
     }
 
+    /**
+     * Gets the raw data object associated with the run.
+     * @return raw data object
+     */
     public WandbServer.RunRecord data() {
         return this.run;
     }
 
+    /**
+     * Logs data points for the run.
+     * @param json data to be logged
+     * @return raw log results object
+     */
     public WandbServer.HistoryResult log(JSONObject json) {
         return this.log(json, ++this.stepCounter);
     }
@@ -173,8 +226,11 @@ public class WandbRun {
         return this.stub.log(makeLogData(json));
     }
 
+    /**
+     * Prints run link URL to stdout.
+     */
     public void printRunInfo() {
-        String baseUrl = "https://app.wandb.ai";
+        String baseUrl = this.run.getHost();
         System.out.println("Monitor your run (" + this.run.getDisplayName() + ") at: "
                 + baseUrl + "/"
                 + this.run.getEntity() + "/"
@@ -197,16 +253,22 @@ public class WandbRun {
         this.shutdown();
     }
 
-    private void exit(int exitCode) {
-        this.stub.runExit(WandbServer.RunExitRecord.newBuilder().setExitCode(exitCode).build());
+    private WandbServer.RunExitResult exit(int exitCode) {
+        return this.stub.runExit(WandbServer.RunExitRecord.newBuilder().setExitCode(exitCode).build());
     }
 
-    private void shutdown() {
-        this.stub.serverShutdown(WandbServer.ServerShutdownRequest.newBuilder().build());
+    private WandbServer.ServerShutdownResult shutdown() {
+        WandbServer.ServerShutdownResult result = this.stub.serverShutdown(
+                WandbServer.ServerShutdownRequest
+                        .newBuilder()
+                        .build()
+        );
+
         this.channel.shutdown();
         try {
             this.grpcProcess.waitFor();
         } catch (InterruptedException ignore) {}
+        return  result;
     }
 
     static private WandbServer.HistoryRecord makeLogData(JSONObject json) {
