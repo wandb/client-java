@@ -48,7 +48,7 @@ public class WandbRun {
                         + data.getRunId()
         );
 
-        run.done();
+        run.finish();
     }
 
     public static class Builder {
@@ -238,11 +238,11 @@ public class WandbRun {
                 + this.run.getRunId());
     }
 
-    public void done() {
-        this.done(0);
+    public void finish() {
+        this.finish(0);
     }
 
-    public void done(int exitCode) {
+    public void finish(int exitCode) {
         try {
             this.output.flush();
             this.output.resetOut();
