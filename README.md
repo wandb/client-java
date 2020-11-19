@@ -2,7 +2,7 @@
   <img src="https://i.imgur.com/RUtiVzH.png" width="600" /><br><br>
 </div>
 
-# **Experimental Java Client - Next Generation**
+# **Experimental Java Client**
 
 ## Development
 

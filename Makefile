@@ -1,5 +1,5 @@
 all:
-    make install
+	make install
 	make build
 
 run:
