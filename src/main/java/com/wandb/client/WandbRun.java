@@ -35,12 +35,18 @@ public class WandbRun {
         this.stub = InternalServiceGrpc.newBlockingStub(this.channel);
 
         // Initialize with config
+        long startTime = System.nanoTime();
         while (this.run == null) {
             try {
                 this.run = this.stub.runUpdate(builder.runBuilder.build()).getRun();
             } catch (Exception e) {
                 // server was  not yet up, wait a moment and try again
                 Thread.sleep(200);
+                long elapsedTime = System.nanoTime() - startTime;
+                if (elapsedTime > 10_000_000_000L) {
+                    System.err.println("Could not establish a connection to the gRPC server in 10 seconds. Aborting.");
+                    throw e;
+                }
             }
         }
         this.stepCounter = 0;
